@@ -1,0 +1,51 @@
+cabal-version: 3.12
+name: rollup-prover
+version: 0.1.0.0
+license: MIT
+license-file: LICENSE
+author: Sourabh Aggarwal
+maintainer: info@zkfold.io
+build-type: Simple
+
+common common
+  default-language: GHC2021
+  default-extensions:
+    DataKinds
+    DeriveAnyClass
+    DerivingStrategies
+    DerivingVia
+    GADTs
+    LambdaCase
+    MultiWayIf
+    OverloadedStrings
+    RecordWildCards
+    RoleAnnotations
+    TemplateHaskell
+    TypeFamilies
+    TypeFamilyDependencies
+    UndecidableInstances
+    UnicodeSyntax
+    ViewPatterns
+
+  ghc-options:
+    -Wall
+    -Werror
+    -Wincomplete-uni-patterns
+    -Wunused-packages
+
+executable rollup-prover
+  import: common
+  main-is: Main.hs
+  build-depends:
+    base,
+    yaml,
+    optparse-applicative,
+    zkfold-prover-api,
+    symbolic-base,
+    symbolic-ledger,
+    openapi3,
+    bytestring,
+    cryptonite,
+    adjunctions,
+
+  hs-source-dirs: app

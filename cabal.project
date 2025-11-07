@@ -1,0 +1,17 @@
+packages:
+  . 
+
+source-repository-package
+  type: git
+  location: https://github.com/zkFold/symbolic-prover-api.git
+  tag: 725e118c5375930f0cafbcf46a21825daff90726
+
+source-repository-package
+  type: git
+  location: https://github.com/zkFold/symbolic.git
+  tag: 0b682bc2078e43ebb678ce989b511af90600831d 
+  subdir: 
+    symbolic-base
+    symbolic-cardano
+    symbolic-ledger
+
