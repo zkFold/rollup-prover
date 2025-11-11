@@ -1,5 +1,8 @@
+{-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Main where
@@ -16,12 +19,15 @@ import GHC.TypeNats (KnownNat, type (+), type (^))
 import Options.Applicative
 import System.IO.Unsafe
 import ZkFold.Algebra.Class
+import ZkFold.Algebra.EllipticCurve.Jubjub (Fq)
 import ZkFold.Data.Binary (fromByteString)
 import ZkFold.Protocol.NonInteractiveProof (TrustedSetup)
 import ZkFold.Protocol.NonInteractiveProof.TrustedSetup (powersOfTauSubset)
 import ZkFold.Protocol.Plonkup.Prover.Secret (PlonkupProverSecret (..))
 import ZkFold.Prover.API.Server
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm (proveAlgorithm))
+import ZkFold.Symbolic.Data.MerkleTree (KnownMerkleTree)
+import ZkFold.Symbolic.Interpreter (Interpreter)
 import ZkFold.Symbolic.Ledger.Circuit.Compile (
   ByteStringFromHex,
   LedgerCircuitGates,
@@ -33,6 +39,8 @@ import ZkFold.Symbolic.Ledger.Circuit.Compile (
   mkProof,
  )
 import ZkFold.Symbolic.Ledger.Types (SignatureState, SignatureTransactionBatch)
+import ZkFold.Symbolic.Ledger.Types.Field (RollupBFInterpreter)
+import ZkFold.Symbolic.Ledger.Types.Orphans ()
 import Prelude hiding (Bool, (==))
 
 configPathParser ∷ Parser FilePath
@@ -60,24 +68,47 @@ ts ∷ TrustedSetup (LedgerCircuitGates + 6)
 {-# NOINLINE ts #-}
 ts = unsafePerformIO powersOfTauSubset
 
-instance ∀ bi bo ud a i o t c. ProveAlgorithm (LedgerContractInput bi bo ud a i o t c) ZKProofBytes where
+-- instance ToSchema ()
+
+instance
+  ∀ bi bo ud a i o t
+   . ( KnownMerkleTree ud
+     , SignatureState bi bo ud a RollupBFInterpreter
+     , SignatureTransactionBatch ud i o a t RollupBFInterpreter
+     , ToSchema (LedgerContractInput bi bo ud a i o t RollupBFInterpreter)
+     )
+  ⇒ ProveAlgorithm (LedgerContractInput bi bo ud a i o t RollupBFInterpreter) ZKProofBytes
+  where
   proveAlgorithm zkProofInput = proofBytes
    where
     randomFieldElement = fromMaybe zero . fromByteString <$> Crypto.getRandomBytes 32
     proverSecret = PlonkupProverSecret <$> sequence (tabulate $ const randomFieldElement)
-    !proofBytes = mkProof $ ledgerProof @ByteString ts (unsafePerformIO proverSecret) ledgerCircuit zkProofInput
+    !proofBytes =
+      mkProof $
+        ledgerProof @ByteString
+          ts
+          (unsafePerformIO proverSecret)
+          (ledgerCircuit @bi @bo @ud @a @i @o @t @RollupBFInterpreter)
+          zkProofInput
 
 deriving instance Generic ServerConfig
 
 instance FromJSON ServerConfig
 
-main ∷ ∀ bi bo ud a i o t c. IO ()
+main
+  ∷ ∀ bi bo ud a i o t
+   . ( KnownMerkleTree ud
+     , SignatureState bi bo ud a (RollupBFInterpreter)
+     , SignatureTransactionBatch ud i o a t (RollupBFInterpreter)
+     , ToSchema (LedgerContractInput bi bo ud a i o t RollupBFInterpreter)
+     )
+  ⇒ IO ()
 main = do
   serverConfigPath ← execParser opts
   print serverConfigPath
   serverConfig ← decodeFileThrow serverConfigPath
   print @String ("Started with " <> show serverConfig)
-  runServer @(LedgerContractInput bi bo ud a i o t c) @ZKProofBytes serverConfig
+  runServer @(LedgerContractInput bi bo ud a i o t (RollupBFInterpreter)) @ZKProofBytes serverConfig
  where
   opts =
     info
