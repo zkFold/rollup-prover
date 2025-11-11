@@ -1,8 +1,3 @@
-{-# LANGUAGE AllowAmbiguousTypes #-}
-{-# LANGUAGE FlexibleInstances #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications #-}
 {-# OPTIONS_GHC -Wno-orphans #-}
 
 module Main where
@@ -15,11 +10,10 @@ import Data.OpenApi (NamedSchema (..), ToSchema (..))
 import Data.Yaml (FromJSON)
 import Data.Yaml.Aeson (decodeFileThrow)
 import GHC.Generics
-import GHC.TypeNats (KnownNat, type (+), type (^))
+import GHC.TypeNats (KnownNat, type (+))
 import Options.Applicative
 import System.IO.Unsafe
 import ZkFold.Algebra.Class
-import ZkFold.Algebra.EllipticCurve.Jubjub (Fq)
 import ZkFold.Data.Binary (fromByteString)
 import ZkFold.Protocol.NonInteractiveProof (TrustedSetup)
 import ZkFold.Protocol.NonInteractiveProof.TrustedSetup (powersOfTauSubset)
@@ -27,7 +21,6 @@ import ZkFold.Protocol.Plonkup.Prover.Secret (PlonkupProverSecret (..))
 import ZkFold.Prover.API.Server
 import ZkFold.Prover.API.Types.ProveAlgorithm (ProveAlgorithm (proveAlgorithm))
 import ZkFold.Symbolic.Data.MerkleTree (KnownMerkleTree)
-import ZkFold.Symbolic.Interpreter (Interpreter)
 import ZkFold.Symbolic.Ledger.Circuit.Compile (
   ByteStringFromHex,
   LedgerCircuitGates,
@@ -56,11 +49,17 @@ configPathParser =
 
 deriving newtype instance ToSchema ZKF
 
--- instance ∀ bi bo ud a i o t c. (SignatureState bi bo ud a c, SignatureTransactionBatch ud i o a t c, KnownNat ud) => ToSchema (LedgerContractInput bi bo ud a i o t c)
-
 instance ToSchema ByteStringFromHex where
   declareNamedSchema _ = do
     pure $ NamedSchema (Just "Byte string in hex encoding") mempty
+
+instance
+  ∀ bi bo ud a i o t
+   . (SignatureState bi bo ud a RollupBFInterpreter, SignatureTransactionBatch ud i o a t RollupBFInterpreter, KnownNat ud)
+  ⇒ ToSchema (LedgerContractInput bi bo ud a i o t RollupBFInterpreter)
+  where
+  declareNamedSchema _ = do
+    pure $ NamedSchema (Just "Ledger contract input") mempty
 
 instance ToSchema ZKProofBytes
 
@@ -96,19 +95,13 @@ deriving instance Generic ServerConfig
 instance FromJSON ServerConfig
 
 main
-  ∷ ∀ bi bo ud a i o t
-   . ( KnownMerkleTree ud
-     , SignatureState bi bo ud a (RollupBFInterpreter)
-     , SignatureTransactionBatch ud i o a t (RollupBFInterpreter)
-     , ToSchema (LedgerContractInput bi bo ud a i o t RollupBFInterpreter)
-     )
-  ⇒ IO ()
+  ∷ IO ()
 main = do
   serverConfigPath ← execParser opts
   print serverConfigPath
   serverConfig ← decodeFileThrow serverConfigPath
   print @String ("Started with " <> show serverConfig)
-  runServer @(LedgerContractInput bi bo ud a i o t (RollupBFInterpreter)) @ZKProofBytes serverConfig
+  runServer @(LedgerContractInput 2 2 2 2 2 2 2 RollupBFInterpreter) @ZKProofBytes serverConfig
  where
   opts =
     info
