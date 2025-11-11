@@ -67,8 +67,6 @@ ts ∷ TrustedSetup (LedgerCircuitGates + 6)
 {-# NOINLINE ts #-}
 ts = unsafePerformIO powersOfTauSubset
 
--- instance ToSchema ()
-
 instance
   ∀ bi bo ud a i o t
    . ( KnownMerkleTree ud
