@@ -10,7 +10,7 @@ import Data.OpenApi (NamedSchema (..), ToSchema (..))
 import Data.Yaml (FromJSON)
 import Data.Yaml.Aeson (decodeFileThrow)
 import GHC.Generics
-import GHC.TypeNats (KnownNat, type (+))
+import GHC.TypeNats (type (+))
 import Options.Applicative
 import System.IO.Unsafe
 import ZkFold.Algebra.Class
@@ -52,14 +52,6 @@ deriving newtype instance ToSchema ZKF
 instance ToSchema ByteStringFromHex where
   declareNamedSchema _ = do
     pure $ NamedSchema (Just "Byte string in hex encoding") mempty
-
-instance
-  ∀ bi bo ud a i o t
-   . (SignatureState bi bo ud a RollupBFInterpreter, SignatureTransactionBatch ud i o a t RollupBFInterpreter, KnownNat ud)
-  ⇒ ToSchema (LedgerContractInput bi bo ud a i o t RollupBFInterpreter)
-  where
-  declareNamedSchema _ = do
-    pure $ NamedSchema (Just "Ledger contract input") mempty
 
 instance ToSchema ZKProofBytes
 
